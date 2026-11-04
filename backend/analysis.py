@@ -3,23 +3,35 @@ import numpy as np
 import pandas as pd
 
 
-NUMERIC_COLUMNS = ["Protein(g)", "Carbs(g)", "Fat(g)"]
+# Columns used throughout the nutritional analysis
+NUMERIC_COLUMNS = [
+    "Protein(g)",
+    "Carbs(g)",
+    "Fat(g)"
+]
 
 RECIPE_COLUMNS = [
     "Recipe_name",
     "Cuisine_type",
-    "Protein(g)",
+    "Protein(g)"
 ]
 
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Clean and standardize the nutritional dataset."""
+    """
+    Clean the nutritional dataset.
+
+    - Validate required columns.
+    - Standardize diet and cuisine names.
+    - Convert nutritional values to numeric types.
+    - Replace missing nutritional values with column averages.
+    """
 
     required_columns = [
         "Diet_type",
         "Cuisine_type",
         "Recipe_name",
-        *NUMERIC_COLUMNS,
+        *NUMERIC_COLUMNS
     ]
 
     missing_columns = [
@@ -34,7 +46,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.copy()
 
-    # Standardize category names.
+    # Standardize text columns
     for column in ["Diet_type", "Cuisine_type"]:
         df[column] = (
             df[column]
@@ -44,20 +56,18 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
             .str.title()
         )
 
-    # Convert nutritional values to numbers.
+    # Clean nutritional values
     for column in NUMERIC_COLUMNS:
         df[column] = pd.to_numeric(
             df[column],
             errors="coerce"
         )
 
-        # Avoid division and analysis problems with infinite values.
         df[column] = df[column].replace(
             [np.inf, -np.inf],
             np.nan
         )
 
-        # Preserve Phase 1's mean-imputation approach.
         column_mean = df[column].mean()
 
         if pd.notna(column_mean):
@@ -69,7 +79,10 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def calculate_average_macros(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate average macronutrients for each diet type."""
+    """
+    Calculate average protein, carbohydrates,
+    and fat for each diet type.
+    """
 
     return (
         df.groupby("Diet_type")[NUMERIC_COLUMNS]
@@ -83,7 +96,9 @@ def get_top_protein_recipes(
     df: pd.DataFrame,
     limit: int = 5
 ) -> pd.DataFrame:
-    """Get the highest-protein recipes for each diet type."""
+    """
+    Retrieve the highest-protein recipes for each diet type.
+    """
 
     return (
         df.sort_values(
@@ -95,14 +110,16 @@ def get_top_protein_recipes(
         .sort_values(
             ["Diet_type", "Protein(g)"],
             ascending=[True, False]
-        )
-        [RECIPE_COLUMNS]
+        )[RECIPE_COLUMNS]
         .reset_index(drop=True)
     )
 
 
 def get_highest_protein_diet(df: pd.DataFrame) -> dict:
-    """Identify the diet with the highest average protein."""
+    """
+    Identify the diet type with the highest
+    average protein content.
+    """
 
     average_protein = (
         df.groupby("Diet_type")["Protein(g)"]
@@ -112,7 +129,7 @@ def get_highest_protein_diet(df: pd.DataFrame) -> dict:
     if average_protein.empty:
         return {
             "diet_type": None,
-            "average_protein": None,
+            "average_protein": None
         }
 
     highest_diet = average_protein.idxmax()
@@ -122,32 +139,34 @@ def get_highest_protein_diet(df: pd.DataFrame) -> dict:
         "average_protein": round(
             float(average_protein.max()),
             2
-        ),
+        )
     }
 
 
 def get_common_cuisines(df: pd.DataFrame) -> pd.DataFrame:
-    """Find the most common cuisine for each diet type."""
+    """
+    Identify the most common cuisine for each diet type.
+    """
 
-    common_cuisines = (
+    return (
         df.groupby("Diet_type")["Cuisine_type"]
         .agg(
-            lambda values: (
+            lambda values:
                 values.mode().iloc[0]
                 if not values.mode().empty
                 else "Unknown"
-            )
         )
         .reset_index(name="most_common_cuisine")
     )
-
-    return common_cuisines
 
 
 def calculate_nutritional_ratios(
     df: pd.DataFrame
 ) -> pd.DataFrame:
-    """Calculate nutritional ratios for each recipe."""
+    """
+    Calculate protein-to-carbohydrate and
+    carbohydrate-to-fat ratios.
+    """
 
     result = df.copy()
 
@@ -165,7 +184,10 @@ def calculate_nutritional_ratios(
 
 
 def generate_insights(df: pd.DataFrame) -> dict:
-    """Run the complete nutritional analysis."""
+    """
+    Run the complete nutritional analysis and
+    return the results in a JSON-friendly dictionary.
+    """
 
     cleaned_df = clean_data(df)
 
@@ -179,30 +201,39 @@ def generate_insights(df: pd.DataFrame) -> dict:
 
     ratios_df = calculate_nutritional_ratios(cleaned_df)
 
+    # Convert missing ratio values into None for JSON compatibility
+    ratios = ratios_df[
+        [
+            "Recipe_name",
+            "Protein_to_Carbs_ratio",
+            "Carbs_to_Fat_ratio"
+        ]
+    ].astype(object)
+
+    ratios = ratios.where(pd.notna(ratios), None)
+
     return {
         "total_recipes": int(len(cleaned_df)),
+
         "diet_types": sorted(
             cleaned_df["Diet_type"].unique().tolist()
         ),
+
         "average_macros": average_macros.to_dict(
             orient="records"
         ),
+
         "top_protein_recipes": top_recipes.to_dict(
             orient="records"
         ),
+
         "highest_protein_diet": highest_protein,
+
         "most_common_cuisines": common_cuisines.to_dict(
             orient="records"
         ),
-        "nutritional_ratios": (
-            ratios_df[
-                [
-                    "Recipe_name",
-                    "Protein_to_Carbs_ratio",
-                    "Carbs_to_Fat_ratio",
-                ]
-            ]
-            .replace({np.nan: None})
-            .to_dict(orient="records")
-        ),
+
+        "nutritional_ratios": ratios.to_dict(
+            orient="records"
+        )
     }
