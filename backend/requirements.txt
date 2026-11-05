@@ -2,5 +2,6 @@ pandas
 matplotlib
 seaborn
 numpy
+scikit-learn
 azure-functions
 azure-storage-blob
