@@ -21,7 +21,7 @@ export default function CorrelationHeatmap({ data }: { data: InsightsResponse["c
     <div
       role="table"
       aria-label="Correlation matrix between nutrients"
-      className="grid h-full gap-[2px] text-[10px]"
+      className="grid h-full gap-0.5 text-[10px]"
       style={{ gridTemplateColumns: `auto repeat(${labels.length}, minmax(0,1fr))` }}
     >
       <div />
