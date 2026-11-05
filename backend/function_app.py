@@ -4,7 +4,7 @@ import logging
 
 import azure.functions as func
 
-from api import get_health, get_insights, get_recipes
+from api import get_health, get_insights, get_recipes, get_clusters
 
 
 app = func.FunctionApp(
@@ -85,6 +85,45 @@ def recipes(req: func.HttpRequest) -> func.HttpResponse:
             {
                 "success": False,
                 "error": "Unable to retrieve recipes.",
+            },
+            500,
+        )
+
+@app.route(
+    route="clusters",
+    methods=["GET"]
+)
+def clusters(req: func.HttpRequest) -> func.HttpResponse:
+
+    try:
+        k = int(req.params.get("k", "3"))
+        diet = req.params.get("diet", "all")
+        search = req.params.get("search", "")
+
+        result = get_clusters(
+            k=k,
+            diet=diet,
+            search=search
+        )
+
+        return create_response(result)
+
+    except ValueError as error:
+        return create_response(
+            {
+                "success": False,
+                "error": str(error),
+            },
+            400,
+        )
+
+    except Exception:
+        logging.exception("Unable to generate nutritional clusters.")
+
+        return create_response(
+            {
+                "success": False,
+                "error": "Unable to generate nutritional clusters.",
             },
             500,
         )
