@@ -22,6 +22,8 @@ out/
 # Environment variables and secrets
 .env*
 !.env.example
+!.env.development
+!.env.production
 local.settings.json
 
 # Build artifacts
