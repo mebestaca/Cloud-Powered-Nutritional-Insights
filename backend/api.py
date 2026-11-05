@@ -1,5 +1,6 @@
 
 from data_source import load_dataset
+from clustering import generate_clusters
 from analysis import (
     clean_data,
     generate_insights,
@@ -65,4 +66,50 @@ def get_recipes(page: int = 1, page_size: int = 10):
         "recipes": recipes.iloc[start:end].to_dict(
             orient="records"
         ),
+    }
+
+def get_clusters(
+    k: int = 3,
+    diet: str = "all",
+    search: str = ""
+):
+    """Return nutritional clusters for the selected recipes."""
+
+    if k < 1 or k > 10:
+        raise ValueError("The number of clusters must be between 1 and 10.")
+
+    df, metadata = load_dataset()
+
+    cleaned_df = clean_data(df)
+
+    # Apply the selected diet filter.
+    if diet.lower() != "all":
+        cleaned_df = cleaned_df[
+            cleaned_df["Diet_type"].str.lower() == diet.lower()
+        ]
+
+    # Search recipe names, diet types, and cuisines.
+    if search.strip():
+        search_term = search.strip().lower()
+
+        matches = (
+            cleaned_df["Recipe_name"].str.lower().str.contains(
+                search_term, na=False
+            )
+            | cleaned_df["Diet_type"].str.lower().str.contains(
+                search_term, na=False
+            )
+            | cleaned_df["Cuisine_type"].str.lower().str.contains(
+                search_term, na=False
+            )
+        )
+
+        cleaned_df = cleaned_df[matches]
+
+    result = generate_clusters(cleaned_df, k=k)
+
+    return {
+        "success": True,
+        "metadata": metadata,
+        **result
     }
