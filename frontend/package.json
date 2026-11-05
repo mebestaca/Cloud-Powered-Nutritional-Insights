@@ -1,5 +1,5 @@
 {
-  "name": "cloud-powered-nutritional-insights",
+  "name": "diet-dashboard-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,8 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "chart.js": "^4.6.1",
     "next": "16.4.3",
     "react": "19.3.0",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
@@ -22,5 +24,8 @@
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   }
 }
