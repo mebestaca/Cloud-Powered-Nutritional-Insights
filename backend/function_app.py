@@ -1,4 +1,3 @@
-
 import json
 import logging
 
@@ -19,111 +18,87 @@ def create_response(data, status_code=200):
         json.dumps(data, allow_nan=False),
         status_code=status_code,
         mimetype="application/json",
+        headers={"Cache-Control": "no-store"},
     )
 
 
-@app.route(
-    route="health",
-    methods=["GET"]
-)
+def error_response(message, status_code):
+    return create_response({"success": False, "error": message}, status_code)
+
+
+def filter_params(req: func.HttpRequest) -> dict:
+    """Query parameters every data endpoint accepts."""
+
+    return {
+        "diet": req.params.get("diet", "all"),
+        "search": req.params.get("search", ""),
+        "refresh": req.params.get("refresh", ""),
+    }
+
+
+def int_param(req: func.HttpRequest, *names, default: int) -> int:
+    """Read the first present integer parameter (accepts camelCase or snake_case)."""
+
+    for name in names:
+        value = req.params.get(name)
+        if value not in (None, ""):
+            try:
+                return int(value)
+            except ValueError:
+                raise ValueError(f"'{name}' must be a whole number.")
+    return default
+
+
+@app.route(route="health", methods=["GET"])
 def health(req: func.HttpRequest) -> func.HttpResponse:
     return create_response(get_health())
 
 
-@app.route(
-    route="insights",
-    methods=["GET"]
-)
+@app.route(route="insights", methods=["GET"])
 def insights(req: func.HttpRequest) -> func.HttpResponse:
-
     try:
-        result = get_insights()
-        return create_response(result)
+        return create_response(get_insights(**filter_params(req)))
+
+    except ValueError as error:
+        return error_response(str(error), 400)
 
     except Exception:
         logging.exception("Unable to generate nutritional insights.")
-
-        return create_response(
-            {
-                "success": False,
-                "error": "Unable to generate nutritional insights.",
-            },
-            500,
-        )
+        return error_response("Unable to generate nutritional insights.", 500)
 
 
-@app.route(
-    route="recipes",
-    methods=["GET"]
-)
+@app.route(route="recipes", methods=["GET"])
 def recipes(req: func.HttpRequest) -> func.HttpResponse:
-
     try:
-        page = int(req.params.get("page", "1"))
-        page_size = int(req.params.get("page_size", "10"))
-
         result = get_recipes(
-            page=page,
-            page_size=page_size,
+            page=int_param(req, "page", default=1),
+            page_size=int_param(req, "pageSize", "page_size", default=10),
+            sort=req.params.get("sort", "protein"),
+            order=req.params.get("order", "desc"),
+            **filter_params(req),
         )
-
         return create_response(result)
 
     except ValueError as error:
-        return create_response(
-            {
-                "success": False,
-                "error": str(error),
-            },
-            400,
-        )
+        return error_response(str(error), 400)
 
     except Exception:
         logging.exception("Unable to retrieve recipes.")
+        return error_response("Unable to retrieve recipes.", 500)
 
-        return create_response(
-            {
-                "success": False,
-                "error": "Unable to retrieve recipes.",
-            },
-            500,
-        )
 
-@app.route(
-    route="clusters",
-    methods=["GET"]
-)
+@app.route(route="clusters", methods=["GET"])
 def clusters(req: func.HttpRequest) -> func.HttpResponse:
-
     try:
-        k = int(req.params.get("k", "3"))
-        diet = req.params.get("diet", "all")
-        search = req.params.get("search", "")
-
         result = get_clusters(
-            k=k,
-            diet=diet,
-            search=search
+            k=int_param(req, "k", default=3),
+            **filter_params(req),
         )
-
         return create_response(result)
 
     except ValueError as error:
-        return create_response(
-            {
-                "success": False,
-                "error": str(error),
-            },
-            400,
-        )
+        return error_response(str(error), 400)
 
     except Exception:
         logging.exception("Unable to generate nutritional clusters.")
-
-        return create_response(
-            {
-                "success": False,
-                "error": "Unable to generate nutritional clusters.",
-            },
-            500,
-        )
+        return error_response("Unable to generate nutritional clusters.", 500)
