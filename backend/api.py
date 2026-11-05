@@ -1,10 +1,10 @@
 
 from data_source import load_dataset
-from clustering import generate_clusters
 from analysis import (
     clean_data,
     generate_insights,
     get_top_protein_recipes,
+    generate_clusters
 )
 
 
